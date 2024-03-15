@@ -11,7 +11,7 @@ import mitsuba
 # note that sampler is changed to 'independent' and the ldrfilm is changed to hdrfilm
 xml_head = \
     """
-<scene version="0.6.0">
+<scene version="3.0.0">
     <integrator type="path">
         <integer name="max_depth" value="-1"/>
     </integrator>
@@ -47,7 +47,7 @@ xml_ball_segment = \
     <shape type="sphere">
         <float name="radius" value="0.007"/>
         <transform name="to_world">
-            <translate x="{}" y="{}" z="{}"/>
+            <translate value="{}, {}, {}"/>
         </transform>
         <bsdf type="diffuse">
             <rgb name="reflectance" value="{},{},{}"/>
@@ -60,14 +60,14 @@ xml_tail = \
     <shape type="rectangle">
         <ref name="bsdf" id="surface_material"/>
         <transform name="to_world">
-            <scale x="10" y="10" z="1"/>
-            <translate x="0" y="0" z="-0.5"/>
+            <scale value="10, 10, 1"/>
+            <translate value="0, 0, -0.5"/>
         </transform>
     </shape>
     
     <shape type="rectangle">
         <transform name="to_world">
-            <scale x="10" y="10" z="1"/>
+            <scale value="10, 10, 1"/>
             <lookat origin="-4,4,20" target="0,0,0" up="0,0,1"/>
         </transform>
         <emitter type="area">
