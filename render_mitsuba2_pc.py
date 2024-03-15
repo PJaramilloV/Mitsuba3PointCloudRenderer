@@ -1,12 +1,9 @@
 import argparse
 import numpy as np
 import sys, os, subprocess
-import OpenEXR
-import Imath
 from PIL import Image
 from plyfile import PlyData, PlyElement
-
-PATH_TO_MITSUBA2 = "/home/tolga/Codes/mitsuba2/build/dist/mitsuba"  # mitsuba exectuable
+import mitsuba
 
 # replaced by command line arguments
 # PATH_TO_NPY = 'pcl_ex.npy' # the tensor to load
@@ -16,17 +13,17 @@ xml_head = \
     """
 <scene version="0.6.0">
     <integrator type="path">
-        <integer name="maxDepth" value="-1"/>
+        <integer name="max_depth" value="-1"/>
     </integrator>
     <sensor type="perspective">
-        <float name="farClip" value="100"/>
-        <float name="nearClip" value="0.1"/>
-        <transform name="toWorld">
+        <float name="far_clip" value="100"/>
+        <float name="near_clip" value="0.1"/>
+        <transform name="to_world">
             <lookat origin="3,3,3" target="0,0,0" up="0,0,1"/>
         </transform>
         <float name="fov" value="25"/>
         <sampler type="independent">
-            <integer name="sampleCount" value="256"/>
+            <integer name="sample_count" value="256"/>
         </sampler>
         <film type="hdrfilm">
             <integer name="width" value="1920"/>
@@ -35,11 +32,11 @@ xml_head = \
         </film>
     </sensor>
     
-    <bsdf type="roughplastic" id="surfaceMaterial">
+    <bsdf type="roughplastic" id="surface_material">
         <string name="distribution" value="ggx"/>
         <float name="alpha" value="0.05"/>
-        <float name="intIOR" value="1.46"/>
-        <rgb name="diffuseReflectance" value="1,1,1"/> <!-- default 0.5 -->
+        <float name="int_ior" value="1.46"/>
+        <rgb name="diffuse_reflectance" value="1,1,1"/> <!-- default 0.5 -->
     </bsdf>
     
 """
@@ -48,8 +45,8 @@ xml_head = \
 xml_ball_segment = \
     """
     <shape type="sphere">
-        <float name="radius" value="0.015"/>
-        <transform name="toWorld">
+        <float name="radius" value="0.007"/>
+        <transform name="to_world">
             <translate x="{}" y="{}" z="{}"/>
         </transform>
         <bsdf type="diffuse">
@@ -61,15 +58,15 @@ xml_ball_segment = \
 xml_tail = \
     """
     <shape type="rectangle">
-        <ref name="bsdf" id="surfaceMaterial"/>
-        <transform name="toWorld">
+        <ref name="bsdf" id="surface_material"/>
+        <transform name="to_world">
             <scale x="10" y="10" z="1"/>
             <translate x="0" y="0" z="-0.5"/>
         </transform>
     </shape>
     
     <shape type="rectangle">
-        <transform name="toWorld">
+        <transform name="to_world">
             <scale x="10" y="10" z="1"/>
             <lookat origin="-4,4,20" target="0,0,0" up="0,0,1"/>
         </transform>
@@ -123,25 +120,9 @@ def writeply(vertices, ply_file):
     file.close()
 
 
-# as done in https://gist.github.com/drakeguan/6303065
-def ConvertEXRToJPG(exrfile, jpgfile):
-    File = OpenEXR.InputFile(exrfile)
-    PixType = Imath.PixelType(Imath.PixelType.FLOAT)
-    DW = File.header()['dataWindow']
-    Size = (DW.max.x - DW.min.x + 1, DW.max.y - DW.min.y + 1)
-
-    rgb = [np.fromstring(File.channel(c, PixType), dtype=np.float32) for c in 'RGB']
-    for i in range(3):
-        rgb[i] = np.where(rgb[i] <= 0.0031308,
-                          (rgb[i] * 12.92) * 255.0,
-                          (1.055 * (rgb[i] ** (1.0 / 2.4)) - 0.055) * 255.0)
-
-    rgb8 = [Image.frombytes("F", Size, c.tostring()).convert("L") for c in rgb]
-    # rgb8 = [Image.fromarray(c.astype(int)) for c in rgb]
-    Image.merge("RGB", rgb8).save(jpgfile, "JPEG", quality=95)
-
-
 def main(args):
+    mitsuba.set_variant(args.mitsuba_variant)
+    
     pathToFile = args.filename
 
     filename, file_extension = os.path.splitext(pathToFile)
@@ -171,7 +152,7 @@ def main(args):
 
     for pcli in range(0, pclTimeSize[0]):
         pcl = pclTime[pcli, :, :]
-
+        
         pcl = standardize_bbox(pcl, args.num_points_per_object)
         pcl = pcl[:, [2, 0, 1]]
         pcl[:, 0] *= -1
@@ -186,28 +167,28 @@ def main(args):
         xml_content = str.join('', xml_segments)
 
         xmlFile = os.path.join(folder, f"{filename}_{pcli:02d}.xml")
+        print(['Writing to: ', xmlFile])
 
         with open(xmlFile, 'w') as f:
             f.write(xml_content)
         f.close()
-
-        exrFile = os.path.join(folder, f"{filename}_{pcli:02d}.exr")
-        if (not os.path.exists(exrFile)):
-            print(['Running Mitsuba, writing to: ', xmlFile])
-            subprocess.run([PATH_TO_MITSUBA2, xmlFile])
+        
+        png_file = os.path.join(folder, f"{filename}_{pcli:02d}.png")
+        if (not os.path.exists(png_file)):
+            print(['Running Mitsuba, loading: ', xmlFile])
+            scene = mitsuba.load_file(xmlFile)
+            render = mitsuba.render(scene)
+            print(['writing to: ', png_file])
+            mitsuba.util.write_bitmap(png_file, render)
         else:
-            print('skipping rendering because the EXR file already exists')
-
-        png = os.path.join(folder, f"{filename}_{pcli:02d}.jpg")
-
-        print(['Converting EXR to JPG...'])
-        ConvertEXRToJPG(exrFile, png)
+            print('skipping rendering because the file already exists')
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="filename to npy/ply")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
+    parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     return parser.parse_args()
 
 
