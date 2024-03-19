@@ -53,3 +53,18 @@ python3.7 render_mitsuba3.ply chair.ply -n 2048
 # Specify the mitsuba variant ('scalar_rgb', 'scalar_spectral', 'cuda_ad_rgb', 'llvm_ad_rgb'). Check --help to list the options.
 python3.7 render_mitsuba3.ply chair.ply -v scalar_rgb
 ```
+
+### Extra: 2-point cloud renderer
+#### (points.hole+noise.ply, evaluated_pc.ply) -> restored_pc.png
+
+There is also a variation that is able to render and merge two point clouds (fractured and evaluated) to show the restoration, for repairing point clouds.
+```bash
+python3.7 render_mitsuba3_2pc.py chair
+```
+Here, it will assume that there are two files: chair_points.hole+noise.ply and chair_evaluated_pc.ply,
+and then it will render a chair_restored.png.
+
+```bash
+python3.7 render_mitsuba3_2pc.py custom-folder/*
+```
+You can also use `*` to render all pairs in a folder, or with certain pattern.
