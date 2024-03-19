@@ -5,6 +5,8 @@ from PIL import Image
 from plyfile import PlyData, PlyElement
 import mitsuba
 
+from utils import standardize_bbox, colormap
+
 # replaced by command line arguments
 # PATH_TO_NPY = 'pcl_ex.npy' # the tensor to load
 
@@ -76,48 +78,6 @@ xml_tail = \
     </shape>
 </scene>
 """
-
-
-def colormap(x, y, z):
-    vec = np.array([x, y, z])
-    vec = np.clip(vec, 0.001, 1.0)
-    norm = np.sqrt(np.sum(vec ** 2))
-    vec /= norm
-    return [vec[0], vec[1], vec[2]]
-
-
-def standardize_bbox(pcl, points_per_object):
-    pt_indices = np.random.choice(pcl.shape[0], points_per_object, replace=False)
-    np.random.shuffle(pt_indices)
-    pcl = pcl[pt_indices]  # n by 3
-    mins = np.amin(pcl, axis=0)
-    maxs = np.amax(pcl, axis=0)
-    center = (mins + maxs) / 2.
-    scale = np.amax(maxs - mins)
-    print("Center: {}, Scale: {}".format(center, scale))
-    result = ((pcl - center) / scale).astype(np.float32)  # [-0.5, 0.5]
-    return result
-
-
-# only for debugging reasons
-def writeply(vertices, ply_file):
-    sv = np.shape(vertices)
-    points = []
-    for v in range(sv[0]):
-        vertex = vertices[v]
-        points.append("%f %f %f\n" % (vertex[0], vertex[1], vertex[2]))
-    print(np.shape(points))
-    file = open(ply_file, "w")
-    file.write('''ply
-    format ascii 1.0
-    element vertex %d
-    property float x
-    property float y
-    property float z
-    end_header
-    %s
-    ''' % (len(vertices), "".join(points)))
-    file.close()
 
 
 def main(args):
