@@ -130,3 +130,11 @@ dmypy.json
 
 # editor stuff
 .idea/
+
+# objects
+*.ply
+*.png
+*.exr
+*.jpg
+*.xml
+*.zip
