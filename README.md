@@ -1,11 +1,10 @@
-# Multiple Point Cloud Renderer using Mitsuba 2
+# Multiple Point Cloud Renderer using Mitsuba (2 or 3)
 
-Calling the script **render_mitsuba2_pc.py** automatically performs the following in order:
+Calling the script **render_mitsuba3.py** automatically performs the following in order:
 
-  1. generates an XML file, which describes a 3D scene in the format used by Mitsuba. 
-  2. calls Mitsuba2 to render the point cloud into an EXR
-  3. processes the EXR into a jpg file.
-  4. iterates for multiple point clouds present in the tensor (.npy)
+  1. Generates an XML file, which describes a 3D scene in the format used by Mitsuba.
+  2. Calls Mitsuba 3 to render the point cloud. _(If using Mistuba 2, exports an EXR intermediate file)_
+  3. Iterates for multiple point clouds present in the tensor (.npy)
   
 It could process both plys and npy. The script is heavily inspired by [PointFlow renderer](https://github.com/zekunhao1995/PointFlowRenderer) and here is how the outputs can look like:
 
