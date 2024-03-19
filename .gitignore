@@ -138,3 +138,6 @@ dmypy.json
 *.jpg
 *.xml
 *.zip
+
+# exception for this repo (so the images for the README.md), and maybe other stuff, can be uplaoded.
+!resources/*

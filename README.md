@@ -9,7 +9,7 @@ Calling the script **render_mitsuba2_pc.py** automatically performs the followin
   
 It could process both plys and npy. The script is heavily inspired by [PointFlow renderer](https://github.com/zekunhao1995/PointFlowRenderer) and here is how the outputs can look like:
 
-![mitsuba rendering](mitsuba_git.png)
+![mitsuba rendering](resources/mitsuba_git.png)
 
 ## Dependencies
 * Python 3.7
