@@ -1,4 +1,4 @@
-from render_mitsuba2_pc import *
+from render_mitsuba3 import *
 
 
 def read_ply(path):
