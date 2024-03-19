@@ -44,4 +44,12 @@ All the outputs including the resulting JPG files will be saved in the directory
 ### For the new mitsuba3
 Since its installed with pip, you just need to call the .py with python.
 
+```bash
+python3.7 render_mitsuba3.ply chair.ply
 
+# Render with a different number of points per object
+python3.7 render_mitsuba3.ply chair.ply -n 2048
+
+# Specify the mitsuba variant ('scalar_rgb', 'scalar_spectral', 'cuda_ad_rgb', 'llvm_ad_rgb'). Check --help to list the options.
+python3.7 render_mitsuba3.ply chair.ply -v scalar_rgb
+```
