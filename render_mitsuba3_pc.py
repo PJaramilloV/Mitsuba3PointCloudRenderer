@@ -53,6 +53,9 @@ def standardize_bbox2(pcl1, pcl2, points_per_object):
 
 
 def main2(args):
+    """
+    Renders two point clouds (a partial and an evaluated, for restoration projects)
+    """
     mitsuba.set_variant(args.mitsuba_variant)
 
     partial_file_path = args.basename + "_points.partial.ply"
