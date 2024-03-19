@@ -1,3 +1,6 @@
+import os.path
+import glob
+
 from render_mitsuba3 import *
 
 
@@ -52,17 +55,10 @@ def standardize_bbox2(pcl1, pcl2, points_per_object):
     return pcl1, pcl2
 
 
-def main2(args):
-    """
-    Renders two point clouds (a partial and an evaluated, for restoration projects)
-    """
-    mitsuba.set_variant(args.mitsuba_variant)
-
-    partial_file_path = args.basename + "_points.partial.ply"
-    evaluated_file_path = args.basename + "_evaluated_pc.ply"
-
-    filename, file_extension = os.path.splitext(evaluated_file_path)
-    folder = os.path.dirname(partial_file_path)
+def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_object):
+    filename, file_extension = os.path.splitext(out_file_path)
+    # filename = os.path.basename(filename)
+    # folder = os.path.dirname(partial_file_path)
 
     partial_pcl_time, color_partial_pcl_time = read_ply(partial_file_path)
     evaluated_pcl_time, color_evaluated_pcl_time = read_ply(evaluated_file_path)
@@ -70,12 +66,12 @@ def main2(args):
     for pcli in range(0, np.shape(partial_pcl_time)[0]):
         partial_pcl = partial_pcl_time[pcli, :, :]
         evaluated_pcl = evaluated_pcl_time[pcli, :, :]
-        # filter black points in evaluated_pcl
-        indices = np.where(np.all(color_evaluated_pcl_time[pcli] != [0, 0, 0], axis=1))[0]
+        # filter black and dark-gray points in evaluated_pcl
+        indices = np.where(color_evaluated_pcl_time[pcli][:, 0] >= 10)[0]
         evaluated_pcl = evaluated_pcl[indices]
 
         # standardize both pcl
-        partial_pcl, evaluated_pcl = standardize_bbox2(partial_pcl, evaluated_pcl, args.num_points_per_object)
+        partial_pcl, evaluated_pcl = standardize_bbox2(partial_pcl, evaluated_pcl, num_points_per_object)
 
         def add_xml_segments(pcl, colormap_fun=colormap):
             pcl = pcl[:, [2, 0, 1]]
@@ -87,14 +83,15 @@ def main2(args):
                 xml_segments.append(xml_ball_segment.format(pcl[i, 0], pcl[i, 1], pcl[i, 2], *color))
 
         def colormap1(x, y, z):
-            vec = np.array([z, 0, .05*x])
+            vec = np.array([z, 0, .05 * x])
             vec = np.clip(vec, 0.001, 1.0)
             norm = np.sqrt(np.sum(vec ** 2))
             vec /= norm
             return vec
 
         def colormap2(x, y, z):
-            vec = np.array([-.3*z, z, -.3*z + .3*x])  # dark green, using a little of red in x for a little color effect
+            vec = np.array(
+                [-.3 * z, z, -.3 * z + .3 * x])  # dark green, using a little of red in x for a little color effect
             vec = np.clip(vec, 0.001, 1.0)
             norm = np.sqrt(np.sum(vec ** 2))
             vec /= norm
@@ -107,28 +104,52 @@ def main2(args):
 
         xml_content = str.join('', xml_segments)
 
-        xmlFile = os.path.join(folder, f"{filename}_restored_{pcli:02d}.xml")
+        xmlFile = f"{filename}_{pcli:02d}.xml"  # os.path.join(folder, f"{filename}_restored_{pcli:02d}.xml")
         print(['Writing to: ', xmlFile])
 
         with open(xmlFile, 'w') as f:
             f.write(xml_content)
         f.close()
-        
-        png_file = os.path.join(folder, f"{filename}_restored_{pcli:02d}.png")
+
+        png_file = f"{filename}_{pcli:02d}" + file_extension  # os.path.join(folder, f"{filename}_restored_{pcli:02d}.png")
         print(['Running Mitsuba, loading: ', xmlFile])
         scene = mitsuba.load_file(xmlFile)
         render = mitsuba.render(scene)
         print(['writing to: ', png_file])
-        mitsuba.util.write_bitmap(png_file, render)
+        mitsuba.util.write_bitmap(png_file, render, write_async=False)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("basename", help="basename of the .ply partial and evaluated files")
+    parser.add_argument("basename",
+                        help="basename of the .ply partial and evaluated files, or name of the folder to process")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     return parser.parse_args()
 
 
+def get_pairs_in_folder(pattern):
+    partial_suffix = "_points.partial.ply"
+    evaluated_suffix = "_evaluated_pc.ply"
+
+    pairs = []
+
+    partial_files = glob.glob(pattern + partial_suffix)  # os.path.join(folder, '*' + partial_suffix))
+    for partial_ply_path in partial_files:
+        evaluated_ply_path = partial_ply_path.rsplit(partial_suffix, 1)[0] + evaluated_suffix
+        if os.path.exists(evaluated_ply_path):
+            pairs.append([partial_ply_path, evaluated_ply_path])
+
+    return pairs
+
+
 if __name__ == "__main__":
-    main2(parse_args())
+    args = parse_args()
+    mitsuba.set_variant(args.mitsuba_variant)
+
+    pair_paths = get_pairs_in_folder(args.basename)
+    for p in pair_paths:
+        main2(p[0],
+              p[1],
+              p[0].rsplit("_points.partial.ply", 1)[0] + "_restored_pc.png",
+              args.num_points_per_object)
