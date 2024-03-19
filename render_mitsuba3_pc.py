@@ -1,5 +1,6 @@
 import os.path
 import glob
+from PIL import Image, ImageDraw
 
 from render_mitsuba3 import *
 
@@ -143,6 +144,39 @@ def get_pairs_in_folder(pattern):
     return pairs
 
 
+def get_restored_renders(pattern):
+    restored_files = sorted(glob.glob(pattern + "_restored_pc_00.png"))
+    return restored_files
+
+
+def merge_renders(renders, filename):
+    images = []
+
+    combined_size = {'width': 0, 'height': 0}
+    for render in renders:
+        image = Image.open(render)
+        factor = 540 / image.height
+        image = image.resize((int(factor * image.width), 540))
+
+        # Draw text
+        ImageDraw.Draw(image).text((30, 10), render, fill=(128, 128, 128))
+
+        images.append(image)
+        combined_size['width'] = max(combined_size['width'], images[-1].width)
+        combined_size['height'] += images[-1].height
+
+    combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
+
+    h = 0
+    for image in images:
+        combined_image.paste(image, (0, h))
+        h += image.height
+        image.close()
+
+    print("Saving", filename)
+    combined_image.save(filename)
+
+
 if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
@@ -153,3 +187,6 @@ if __name__ == "__main__":
               p[1],
               p[0].rsplit("_points.partial.ply", 1)[0] + "_restored_pc.png",
               args.num_points_per_object)
+
+    if len(pair_paths) > 1:
+        merge_renders(get_restored_renders(args.basename), args.basename[:-1] + "combined.png")
