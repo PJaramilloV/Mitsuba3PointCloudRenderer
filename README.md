@@ -11,7 +11,7 @@ It could process both plys and npy. The script is heavily inspired by [PointFlow
 ![mitsuba rendering](resources/mitsuba_git.png)
 
 ## Dependencies
-* Python 3.7
+* Python 3.8
 * [Mitsuba 3](http://www.mitsuba-renderer.org/)  (Installed from pip)
 * Used python packages for 'render_mitsuba2_pc' : OpenEXR, Imath, PIL
 
@@ -66,4 +66,5 @@ and then it will render a chair_restored.png.
 ```bash
 python3.7 render_mitsuba3_2pc.py custom-folder/*
 ```
-You can also use `*` to render all pairs in a folder, or with certain pattern.
+You can also use `*` to render all pairs in a folder, or with certain pattern. You may need to put the path between `"`,
+like `"custom-folder/*"`.
