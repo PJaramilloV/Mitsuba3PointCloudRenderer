@@ -63,8 +63,17 @@ python3.7 render_mitsuba3_2pc.py chair
 Here, it will assume that there are two files: chair_points.hole+noise.ply and chair_evaluated_pc.ply,
 and then it will render a chair_restored.png.
 
+You can also use `*` to render all pairs in a folder, or with certain pattern. You may need to put the path between `"`,
+like `"custom-folder/*"`.
 ```bash
 python3.7 render_mitsuba3_2pc.py custom-folder/*
 ```
-You can also use `*` to render all pairs in a folder, or with certain pattern. You may need to put the path between `"`,
-like `"custom-folder/*"`.
+
+You can change the partial and evaluated input names, in case your .ply files are called different.
+```bash
+python3.7 render_mitsuba3_2pc.py custom-folder/* --partial_suffix _partial_pc.ply --evaluated_suffix _evaluated_pc.ply
+```
+Of course, you can change the render output's suffix.
+```bash
+python3.7 render_mitsuba3_2pc.py custom-folder/* --restored_suffix _restored_pc.png
+```

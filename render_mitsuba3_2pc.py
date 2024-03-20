@@ -126,16 +126,18 @@ def parse_args():
                         help="basename of the .ply partial and evaluated files, or name of the folder to process")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
+
+    parser.add_argument("--partial_suffix", type=str, default="_points.partial.ply")
+    parser.add_argument("--evaluated_suffix", type=str, default="_evaluated_pc.ply")
+    parser.add_argument("--restored_suffix", type=str, default="_restored_pc.png")
+
     return parser.parse_args()
 
 
-def get_pairs_in_folder(pattern):
-    partial_suffix = "_points.partial.ply"
-    evaluated_suffix = "_evaluated_pc.ply"
-
+def get_pairs_in_folder(partial_suffix, evaluated_suffix, pattern):
     pairs = []
 
-    partial_files = glob.glob(pattern + partial_suffix)  # os.path.join(folder, '*' + partial_suffix))
+    partial_files = glob.glob(pattern + partial_suffix)
     for partial_ply_path in partial_files:
         evaluated_ply_path = partial_ply_path.rsplit(partial_suffix, 1)[0] + evaluated_suffix
         if os.path.exists(evaluated_ply_path):
@@ -145,7 +147,10 @@ def get_pairs_in_folder(pattern):
 
 
 def get_restored_renders(pattern):
-    restored_files = sorted(glob.glob(pattern + "_restored_pc_00.png"))
+    pattern, ext = os.path.splitext(pattern)
+    pattern = pattern + "*" + ext  # To look for stuff like restored_pc_01.png, not just restored_pc.png
+
+    restored_files = sorted(glob.glob(pattern))
     return restored_files
 
 
@@ -180,13 +185,12 @@ def merge_renders(renders, filename):
 if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
-
-    pair_paths = get_pairs_in_folder(args.basename)
+    pair_paths = get_pairs_in_folder(args.partial_suffix, args.evaluated_suffix, args.basename)
     for p in pair_paths:
         main2(p[0],
               p[1],
-              p[0].rsplit("_points.partial.ply", 1)[0] + "_restored_pc.png",
+              p[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix,
               args.num_points_per_object)
 
     if len(pair_paths) > 1:
-        merge_renders(get_restored_renders(args.basename), args.basename[:-1] + "combined.png")
+        merge_renders(get_restored_renders(args.basename+args.restored_suffix), args.basename[:-1] + "combined.png")
