@@ -36,6 +36,9 @@ python3.6 render_mitsuba2_pc.py chair.ply
 
 # Render with a different number of points per object
 python3.6 render_mitsuba2_pc.py chair.ply -n 2048
+
+# Even render all files with a pattern in a folder!
+python3.6 render_mitsuba2_pc.py ./*.ply
 ```
 
 All the outputs including the resulting JPG files will be saved in the directory of the input point cloud. The intermediate EXR/XML files will remain in the folder and has to be removed by the user.
@@ -51,6 +54,9 @@ python3.7 render_mitsuba3.py chair.ply -n 2048
 
 # Specify the mitsuba variant ('scalar_rgb', 'scalar_spectral', 'cuda_ad_rgb', 'llvm_ad_rgb'). Check --help to list the options.
 python3.7 render_mitsuba3.py chair.ply -v scalar_rgb
+
+# Even render all files with a pattern in a folder!
+python3.7 render_mitsuba3.py ./*.ply
 ```
 
 ### Extra: 2-point cloud renderer

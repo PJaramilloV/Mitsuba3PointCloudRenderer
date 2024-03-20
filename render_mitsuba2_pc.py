@@ -6,7 +6,7 @@ import Imath
 from PIL import Image
 from plyfile import PlyData, PlyElement
 
-from utils import standardize_bbox, colormap
+from utils import standardize_bbox, colormap, get_files
 
 PATH_TO_MITSUBA2 = "/home/tolga/Codes/mitsuba2/build/dist/mitsuba"  # mitsuba exectuable
 
@@ -122,9 +122,7 @@ def ConvertEXRToJPG(exrfile, jpgfile):
     Image.merge("RGB", rgb8).save(jpgfile, "JPEG", quality=95)
 
 
-def main(args):
-    pathToFile = args.filename
-
+def main(pathToFile, num_points_per_object):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
@@ -153,7 +151,7 @@ def main(args):
     for pcli in range(0, pclTimeSize[0]):
         pcl = pclTime[pcli, :, :]
 
-        pcl = standardize_bbox(pcl, args.num_points_per_object)
+        pcl = standardize_bbox(pcl, num_points_per_object)
         pcl = pcl[:, [2, 0, 1]]
         pcl[:, 0] *= -1
         pcl[:, 2] += 0.0125
@@ -187,10 +185,13 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="filename to npy/ply")
+    parser.add_argument("filename", help="filename or pattern to look for npy/ply")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    args = parse_args()
+
+    for path in get_files(args.filename):
+        main(path, args.num_points_per_object)

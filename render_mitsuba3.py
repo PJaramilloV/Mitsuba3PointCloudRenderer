@@ -5,7 +5,7 @@ from PIL import Image
 from plyfile import PlyData, PlyElement
 import mitsuba
 
-from utils import standardize_bbox, colormap
+from utils import standardize_bbox, colormap, get_files
 
 # replaced by command line arguments
 # PATH_TO_NPY = 'pcl_ex.npy' # the tensor to load
@@ -80,11 +80,7 @@ xml_tail = \
 """
 
 
-def main(args):
-    mitsuba.set_variant(args.mitsuba_variant)
-    
-    pathToFile = args.filename
-
+def main(pathToFile, num_points_per_object):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
@@ -113,7 +109,7 @@ def main(args):
     for pcli in range(0, pclTimeSize[0]):
         pcl = pclTime[pcli, :, :]
         
-        pcl = standardize_bbox(pcl, args.num_points_per_object)
+        pcl = standardize_bbox(pcl, num_points_per_object)
         pcl = pcl[:, [2, 0, 1]]
         pcl[:, 0] *= -1
         pcl[:, 2] += 0.0125
@@ -146,11 +142,15 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="filename to npy/ply")
+    parser.add_argument("filename", help="filename or pattern to look for npy/ply")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    args = parse_args()
+    mitsuba.set_variant(args.mitsuba_variant)
+
+    for path in get_files(args.filename):
+        main(path, args.num_points_per_object)

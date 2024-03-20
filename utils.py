@@ -1,3 +1,5 @@
+import glob
+
 import numpy as np
 
 
@@ -30,3 +32,6 @@ def standardize_bbox(pcl, points_per_object):
     center, scale = estimate_center_scale(pcl, points_per_object)
     return standardize_pc(pcl, center, scale)
 
+
+def get_files(pattern):
+    return glob.glob(pattern)
