@@ -154,10 +154,17 @@ def parse_args():
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     parser.add_argument("-j", "--join_renders", type=bool, default=True)
     parser.add_argument("-c", "--clear", type=bool, default=False, help='clear all previous images corresponding to the files')
+    parser.add_argument('-k', '--keep_renders', type=bool, default=True, help='keep rendered images after completing rendering')
     parser.add_argument('-f', '--force_render', type=bool, default=False)
     parser.add_argument('-d', '--debug', type=bool, default=False)
     return parser.parse_args()
 
+def remove_images(files):
+    imgs = get_images(files, replace_dots=True)
+    for img in imgs:
+        xml = img.replace('png', 'xml')
+        os.remove(xml)
+        os.remove(img)
 
 def merge_renders(renders, filename):
     images = []
@@ -195,11 +202,7 @@ if __name__ == "__main__":
         debug_msg = print
 
     if args.clear:
-        imgs = get_images(files, replace_dots=True)
-        for img in imgs:
-            xml = img.replace('png', 'xml')
-            os.remove(xml)
-            os.remove(img)
+        remove_images(files)
 
     for path in tqdm(files):
         main(path, args.num_points_per_object, forced=args.force_render)
@@ -223,3 +226,5 @@ if __name__ == "__main__":
         imgs = get_images(files, replace_dots=True)
         merge_renders(imgs, os.path.join(deepest_dir,'data_view.png'))
 
+    if not args.keep_renders:
+        remove_images(files)
