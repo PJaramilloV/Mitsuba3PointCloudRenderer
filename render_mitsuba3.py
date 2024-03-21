@@ -208,7 +208,7 @@ if __name__ == "__main__":
         deepest_dir:str = args.filename
         try:
             first_wild = deepest_dir.index('*')
-            deepest_dir = deepest_dir[first_wild]
+            deepest_dir = deepest_dir[:first_wild]
             while not os.path.isdir(deepest_dir) and deepest_dir:
                 path_parts = deepest_dir.split('/')[:-1]
                 deepest_dir = "/".join(path_parts)
