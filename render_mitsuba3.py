@@ -1,11 +1,17 @@
-import argparse
+from PIL import Image, ImageDraw, ImageFont
+from plyfile import PlyData
+from tqdm import tqdm
 import numpy as np
-import sys, os, subprocess
-from PIL import Image
-from plyfile import PlyData, PlyElement
+import argparse
 import mitsuba
+import glob
+import os
 
-from utils import standardize_bbox, colormap, get_files
+from utils import (
+    standardize_bbox, colormap, 
+    get_files, rreplace, get_images,
+    debug_msg
+)
 
 # replaced by command line arguments
 # PATH_TO_NPY = 'pcl_ex.npy' # the tensor to load
@@ -80,7 +86,7 @@ xml_tail = \
 """
 
 
-def main(pathToFile, num_points_per_object):
+def main(pathToFile, num_points_per_object, forced=False):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
@@ -121,23 +127,24 @@ def main(pathToFile, num_points_per_object):
         xml_segments.append(xml_tail)
 
         xml_content = str.join('', xml_segments)
+        object_name = rreplace(filename,'.','_')
 
-        xmlFile = os.path.join(folder, f"{filename}_{pcli:02d}.xml")
-        print(['Writing to: ', xmlFile])
+        xmlFile = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.xml")
+        debug_msg(['Writing to: ', xmlFile])
 
         with open(xmlFile, 'w') as f:
             f.write(xml_content)
         f.close()
         
-        png_file = os.path.join(folder, f"{filename}_{pcli:02d}.png")
-        if (not os.path.exists(png_file)):
-            print(['Running Mitsuba, loading: ', xmlFile])
+        png_file = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.png")
+        if forced or (not os.path.exists(png_file)):
+            debug_msg(['Running Mitsuba, loading: ', xmlFile])
             scene = mitsuba.load_file(xmlFile)
             render = mitsuba.render(scene)
-            print(['writing to: ', png_file])
+            debug_msg(['writing to: ', png_file])
             mitsuba.util.write_bitmap(png_file, render)
         else:
-            print('skipping rendering because the file already exists')
+            debug_msg('skipping rendering because the file already exists')
 
 
 def parse_args():
@@ -145,12 +152,74 @@ def parse_args():
     parser.add_argument("filename", help="filename or pattern to look for npy/ply")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
+    parser.add_argument("-j", "--join_renders", type=bool, default=True)
+    parser.add_argument("-c", "--clear", type=bool, default=False, help='clear all previous images corresponding to the files')
+    parser.add_argument('-f', '--force_render', type=bool, default=False)
+    parser.add_argument('-d', '--debug', type=bool, default=False)
     return parser.parse_args()
 
+
+def merge_renders(renders, filename):
+    images = []
+    font = ImageFont.truetype("FreeSans.ttf", 30)
+    combined_size = {'width': 0, 'height': 0}
+    for render in renders:
+        image = Image.open(render)
+        factor = 540 / image.height
+        image = image.resize((int(factor * image.width), 540))
+        file = render.split('/')[-1]
+
+        # Draw text
+        ImageDraw.Draw(image).text((30, 10), file, fill=(128, 128, 128), font=font)
+
+        images.append(image)
+        combined_size['width'] = max(combined_size['width'], images[-1].width)
+        combined_size['height'] += images[-1].height
+
+    combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
+
+    h = 0
+    for image in images:
+        combined_image.paste(image, (0, h))
+        h += image.height
+        image.close()
+
+    print("Saving", filename)
+    combined_image.save(filename)
 
 if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
+    files = get_files(args.filename)
+    if args.debug:
+        debug_msg = print
 
-    for path in get_files(args.filename):
-        main(path, args.num_points_per_object)
+    if args.clear:
+        imgs = get_images(files, replace_dots=True)
+        for img in imgs:
+            xml = img.replace('png', 'xml')
+            os.remove(xml)
+            os.remove(img)
+
+    for path in tqdm(files):
+        main(path, args.num_points_per_object, forced=args.force_render)
+
+    if args.join_renders:
+        deepest_dir:str = args.filename
+        try:
+            first_wild = deepest_dir.index('*')
+            deepest_dir = deepest_dir[first_wild]
+            while not os.path.isdir(deepest_dir) and deepest_dir:
+                path_parts = deepest_dir.split('/')[:-1]
+                deepest_dir = "/".join(path_parts)
+        except:
+            # no wild_cards in directory
+            path_parts = deepest_dir.split('/')[:-1]
+            deepest_dir = "/".join(path_parts)
+
+        if not deepest_dir:
+            deepest_dir = '.'
+        
+        imgs = get_images(files, replace_dots=True)
+        merge_renders(imgs, os.path.join(deepest_dir,'data_view.png'))
+
