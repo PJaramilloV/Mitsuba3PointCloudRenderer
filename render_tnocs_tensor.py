@@ -7,7 +7,7 @@ from PIL import Image
 from plyfile import PlyData, PlyElement
 from scipy.spatial.transform import Rotation as R
 
-from utils import estimate_center_scale, standardize_pc, colormap
+from utils import estimate_center_scale, standardize_pc, sample_pcl, colormap
 
 PATH_TO_MITSUBA2 = "/home/tolga/Codes/mitsuba2/build/dist/mitsuba"  # mitsuba exectuable
 
@@ -89,7 +89,7 @@ def estimate_bbox_all(pcls, points_per_object):
     center = [0,0,0]
     scale = 0
     for i in range(0,pclsSize[0]):
-        [centerCur, scaleCur] = estimate_center_scale(pcls[i,:,:], points_per_object)
+        [centerCur, scaleCur] = estimate_center_scale(sample_pcl(pcls[i,:,:], points_per_object))
         center = center + centerCur
         scale = scale + scaleCur
     center = center / pclsSize[0]
