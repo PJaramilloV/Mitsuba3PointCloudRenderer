@@ -55,5 +55,5 @@ def get_images(files, replace_dots=False):
         images.extend(imgs)
     return images
 
-def debug_msg(args,*kwargs):
+def debug_msg(*args,**kwargs):
     pass

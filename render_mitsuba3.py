@@ -152,15 +152,16 @@ def parse_args():
     parser.add_argument("filename", help="filename or pattern to look for npy/ply")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
-    parser.add_argument("-j", "--join_renders", type=bool, default=True)
-    parser.add_argument("-c", "--clear", type=bool, default=False, help='clear all previous images corresponding to the files')
-    parser.add_argument('-k', '--keep_renders', type=bool, default=True, help='keep rendered images after completing rendering')
-    parser.add_argument('-f', '--force_render', type=bool, default=False)
-    parser.add_argument('-d', '--debug', type=bool, default=False)
+    parser.add_argument("-j", "--join_renders", type=eval, default=True)
+    parser.add_argument("-c", "--clear", type=eval, default=False, help='clear all previous images corresponding to the files')
+    parser.add_argument('-k', '--keep_renders', type=eval, default=True, help='keep rendered images after completing rendering')
+    parser.add_argument('-f', '--force_render', type=eval, default=False)
+    parser.add_argument('-d', '--debug', type=eval, default=False)
     return parser.parse_args()
 
 def remove_images(files):
     imgs = get_images(files, replace_dots=True)
+    debug_msg(f'Removing {len(imgs)} images and xml files')
     for img in imgs:
         xml = img.replace('png', 'xml')
         os.remove(xml)
@@ -224,7 +225,7 @@ if __name__ == "__main__":
             deepest_dir = '.'
         
         imgs = get_images(files, replace_dots=True)
-        merge_renders(imgs, os.path.join(deepest_dir,'data_view.png'))
+        merge_renders(sorted(imgs), os.path.join(deepest_dir,'data_view.png'))
 
     if not args.keep_renders:
         remove_images(files)
