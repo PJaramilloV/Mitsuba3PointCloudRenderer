@@ -4,7 +4,6 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 import mitsuba
-import glob
 import os
 
 from utils import (
@@ -27,7 +26,7 @@ xml_head = \
         <float name="far_clip" value="100"/>
         <float name="near_clip" value="0.1"/>
         <transform name="to_world">
-            <lookat origin="3,3,3" target="0,0,0" up="0,0,1"/>
+            <lookat origin="3,3,3" target="0,0,0" up="{}"/>
         </transform>
         <float name="fov" value="25"/>
         <sampler type="independent">
@@ -63,6 +62,13 @@ xml_ball_segment = \
     </shape>
 """
 
+xml_obj_segment = \
+"""
+    <shape type="obj">
+        <string name="filename" value="{}"/>
+    </shape>
+"""
+
 xml_tail = \
     """
     <shape type="rectangle">
@@ -85,11 +91,24 @@ xml_tail = \
 </scene>
 """
 
+def render_xml(xml_file, png_file):
+    debug_msg(['Running Mitsuba, loading: ', xml_file])
+    scene = mitsuba.load_file(xml_file)
+    render = mitsuba.render(scene)
+    debug_msg(['writing to: ', png_file])
+    mitsuba.util.write_bitmap(png_file, render)
+
+def write_xml(xml_file, content):
+    debug_msg(['Writing to: ', xml_file])
+    with open(xml_file, 'w') as f:
+        f.write(content)
+
 
 def main(pathToFile, num_points_per_object, forced=False):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
+    object_name = rreplace(filename,'.','_')
 
     # for the moment supports npy and ply
     if (file_extension == '.npy'):
@@ -104,6 +123,19 @@ def main(pathToFile, num_points_per_object, forced=False):
         vertex = ply['vertex']
         (x, y, z) = (vertex[t] for t in ('x', 'y', 'z'))
         pclTime = np.column_stack((x, y, z))
+    elif (file_extension == '.obj'):
+        xml_file = os.path.join(folder, f"{object_name}.xml")
+        png_file = xml_file.replace('.xml','.png')
+        if forced or (not os.path.exists(png_file)):
+            xml_segments = [xml_head]
+            xml_segments.append(xml_obj_segment.format(pathToFile))
+            xml_segments.append(xml_tail)
+            xml_content = str.join('', xml_segments)
+            write_xml(xml_file, xml_content)
+            render_xml(xml_file, png_file)
+        else:
+            debug_msg('skipping rendering because the file already exists')
+        return
     else:
         print('unsupported file format.')
         return
@@ -127,22 +159,13 @@ def main(pathToFile, num_points_per_object, forced=False):
         xml_segments.append(xml_tail)
 
         xml_content = str.join('', xml_segments)
-        object_name = rreplace(filename,'.','_')
 
         xmlFile = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.xml")
-        debug_msg(['Writing to: ', xmlFile])
-
-        with open(xmlFile, 'w') as f:
-            f.write(xml_content)
-        f.close()
+        write_xml(xmlFile, xml_content)
         
-        png_file = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.png")
+        png_file = xml_file.replace('.xml','.png')
         if forced or (not os.path.exists(png_file)):
-            debug_msg(['Running Mitsuba, loading: ', xmlFile])
-            scene = mitsuba.load_file(xmlFile)
-            render = mitsuba.render(scene)
-            debug_msg(['writing to: ', png_file])
-            mitsuba.util.write_bitmap(png_file, render)
+            render_xml(xmlFile, png_file)
         else:
             debug_msg('skipping rendering because the file already exists')
 
@@ -157,6 +180,7 @@ def parse_args():
     parser.add_argument('-k', '--keep_renders', type=eval, default=True, help='keep rendered images after completing rendering')
     parser.add_argument('-f', '--force_render', type=eval, default=False)
     parser.add_argument('-d', '--debug', type=eval, default=False)
+    parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], help='Axis considered height')
     return parser.parse_args()
 
 def remove_images(files):
@@ -199,6 +223,11 @@ if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
     files = get_files(args.filename)
+    up = args.up_axis
+    up_x, up_y, up_z = ('x' in up), ('y' in up), ('z' in up)
+    up_vec = f'{1&up_x},{1&up_y},{1&up_z}'
+    xml_head = xml_head.format(up_vec)
+    xml_tail = xml_tail.format(up_vec)
     if args.debug:
         debug_msg = print
 
