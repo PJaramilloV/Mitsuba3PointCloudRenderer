@@ -169,7 +169,11 @@ def remove_images(files):
 
 def merge_renders(renders, filename):
     images = []
-    font = ImageFont.truetype("FreeSans.ttf", 30)
+    try:
+        font = ImageFont.truetype("FreeSans.ttf", 30)
+    except IOError:
+        font = ImageFont.load_default()
+    
     combined_size = {'width': 0, 'height': 0}
     for render in renders:
         image = Image.open(render)
