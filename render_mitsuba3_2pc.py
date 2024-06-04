@@ -154,34 +154,6 @@ def get_restored_renders(pattern):
     return restored_files
 
 
-def merge_renders(renders, filename):
-    images = []
-
-    combined_size = {'width': 0, 'height': 0}
-    for render in renders:
-        image = Image.open(render)
-        factor = 540 / image.height
-        image = image.resize((int(factor * image.width), 540))
-
-        # Draw text
-        ImageDraw.Draw(image).text((30, 10), render, fill=(128, 128, 128))
-
-        images.append(image)
-        combined_size['width'] = max(combined_size['width'], images[-1].width)
-        combined_size['height'] += images[-1].height
-
-    combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
-
-    h = 0
-    for image in images:
-        combined_image.paste(image, (0, h))
-        h += image.height
-        image.close()
-
-    print("Saving", filename)
-    combined_image.save(filename)
-
-
 if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
