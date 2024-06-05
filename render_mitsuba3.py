@@ -180,7 +180,7 @@ def parse_args():
     parser.add_argument('-k', '--keep_renders', type=eval, default=True, help='keep rendered images after completing rendering')
     parser.add_argument('-f', '--force_render', type=eval, default=False)
     parser.add_argument('-d', '--debug', type=eval, default=False)
-    parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], help='Axis considered height')
+    parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], default='z', help='Axis considered height')
     return parser.parse_args()
 
 def remove_images(files):
