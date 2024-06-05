@@ -188,12 +188,12 @@ def parse_args():
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     parser.add_argument("-j", "--join_renders", type=eval, default=True)
-    parser.add_argument("-c", "--clear", type=eval, default=False, help='clear all previous images corresponding to the files')
     parser.add_argument('-k', '--keep_renders', type=eval, default=True, help='keep rendered images after completing rendering')
-    parser.add_argument('-f', '--force_render', type=eval, default=False)
-    parser.add_argument('-d', '--debug', type=eval, default=False)
     parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], default='z', help='Axis considered height')
+    parser.add_argument('-f', '--force_render', action='store_true', help='overwrite existing renders')
+    parser.add_argument("-c", "--clear", action='store_true', help='clear all previous images corresponding to the files')
     parser.add_argument('--render_obj_as_pointcloud', action='store_true')
+    parser.add_argument('-d', '--debug', action='store_true')
     return parser.parse_args()
 
 def remove_images(files):
