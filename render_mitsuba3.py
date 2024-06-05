@@ -104,7 +104,7 @@ def write_xml(xml_file, content):
         f.write(content)
 
 
-def main(pathToFile, num_points_per_object, forced=False):
+def main(pathToFile, num_points_per_object, forced=False, obj_as_pcl=False):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
@@ -124,18 +124,30 @@ def main(pathToFile, num_points_per_object, forced=False):
         (x, y, z) = (vertex[t] for t in ('x', 'y', 'z'))
         pclTime = np.column_stack((x, y, z))
     elif (file_extension == '.obj'):
-        xml_file = os.path.join(folder, f"{object_name}.xml")
-        png_file = xml_file.replace('.xml','.png')
-        if forced or (not os.path.exists(png_file)):
-            xml_segments = [xml_head]
-            xml_segments.append(xml_obj_segment.format(pathToFile))
-            xml_segments.append(xml_tail)
-            xml_content = str.join('', xml_segments)
-            write_xml(xml_file, xml_content)
-            render_xml(xml_file, png_file)
+        if obj_as_pcl:
+            import pywavefront
+            scene = pywavefront.Wavefront(pathToFile)
+            if len(scene.materials) == 0:
+                pclTime = np.array(scene.vertices)
+            else:
+                pclTime = []
+                for _, material in scene.materials.items():
+                    pclTime.append(np.array(material.vertices).reshape(-1, 3))
+                pclTime = np.array(pclTime)
+            pclTimeSize = np.shape(pclTime)
         else:
-            debug_msg('skipping rendering because the file already exists')
-        return
+            xml_file = os.path.join(folder, f"{object_name}.xml")
+            png_file = xml_file.replace('.xml','.png')
+            if forced or (not os.path.exists(png_file)):
+                xml_segments = [xml_head]
+                xml_segments.append(xml_obj_segment.format(pathToFile))
+                xml_segments.append(xml_tail)
+                xml_content = str.join('', xml_segments)
+                write_xml(xml_file, xml_content)
+                render_xml(xml_file, png_file)
+            else:
+                debug_msg('skipping rendering because the file already exists')
+            return
     else:
         print('unsupported file format.')
         return
@@ -181,6 +193,7 @@ def parse_args():
     parser.add_argument('-f', '--force_render', type=eval, default=False)
     parser.add_argument('-d', '--debug', type=eval, default=False)
     parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], default='z', help='Axis considered height')
+    parser.add_argument('--render_obj_as_pointcloud', action='store_true')
     return parser.parse_args()
 
 def remove_images(files):
@@ -239,7 +252,7 @@ if __name__ == "__main__":
         remove_images(files)
 
     for path in tqdm(files):
-        main(path, args.num_points_per_object, forced=args.force_render)
+        main(path, args.num_points_per_object, forced=args.force_render, obj_as_pcl=args.render_obj_as_pointcloud)
 
     if args.join_renders:
         deepest_dir:str = args.filename
