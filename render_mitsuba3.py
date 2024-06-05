@@ -159,7 +159,7 @@ def main(pathToFile, num_points_per_object, forced=False, obj_as_pcl=False):
     for pcli in range(0, pclTimeSize[0]):
         pcl = pclTime[pcli, :, :]
         
-        pcl = standardize_bbox(pcl, num_points_per_object)
+        pcl = standardize_bbox(pcl, min(num_points_per_object, pcl.shape[0]))
         pcl = pcl[:, [2, 0, 1]]
         pcl[:, 0] *= -1
         pcl[:, 2] += 0.0125
