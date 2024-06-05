@@ -160,12 +160,12 @@ def main(pathToFile, num_points_per_object, forced=False):
 
         xml_content = str.join('', xml_segments)
 
-        xmlFile = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.xml")
-        write_xml(xmlFile, xml_content)
+        xml_file = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.xml")
+        write_xml(xml_file, xml_content)
         
         png_file = xml_file.replace('.xml','.png')
         if forced or (not os.path.exists(png_file)):
-            render_xml(xmlFile, png_file)
+            render_xml(xml_file, png_file)
         else:
             debug_msg('skipping rendering because the file already exists')
 
