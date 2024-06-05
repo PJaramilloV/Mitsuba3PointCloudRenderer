@@ -82,7 +82,7 @@ xml_tail = \
     <shape type="rectangle">
         <transform name="to_world">
             <scale value="10, 10, 1"/>
-            <lookat origin="-4,4,20" target="0,0,0" up="0,0,1"/>
+            <lookat origin="-4,4,20" target="0,0,0" up="{}"/>
         </transform>
         <emitter type="area">
             <rgb name="radiance" value="6,6,6"/>
