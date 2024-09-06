@@ -1,8 +1,36 @@
 import os.path
 import glob
 from PIL import Image, ImageDraw
+import colorsys
 
 from render_mitsuba3 import *
+
+xml_ball_segment_partial = \
+    """
+    <shape type="sphere">
+        <float name="radius" value="0.007"/>
+        <transform name="to_world">
+            <translate value="{}, {}, {}"/>
+        </transform>
+        <bsdf type="diffuse">
+            <rgb name="reflectance" value="{},{},{}"/>
+        </bsdf>
+    </shape>
+"""
+
+xml_ball_segment_evaluated = \
+    """
+    <shape type="sphere">
+        <float name="radius" value="0.007"/>
+        <transform name="to_world">
+            <translate value="{}, {}, {}"/>
+        </transform>
+        <bsdf type="pplastic">
+            <rgb name="diffuse_reflectance" value="{},{},{}"/>
+            <float name="alpha" value="0.06"/>
+        </bsdf>
+    </shape>
+"""
 
 
 def read_ply(path):
@@ -104,7 +132,7 @@ def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_
         # standardize both pcl
         partial_pcl, evaluated_pcl = standardize_bbox2(partial_pcl, evaluated_pcl, num_points_per_object)
 
-        def add_xml_segments(pcl, colormap_fun=colormap):
+        def add_xml_segments(pcl, colormap_fun=colormap, xml_ball_segment=xml_ball_segment):
             pcl = pcl[:, [2, 0, 1]]
             pcl[:, 0] *= -1
             pcl[:, 2] += 0.0125
@@ -114,23 +142,57 @@ def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_
                 xml_segments.append(xml_ball_segment.format(pcl[i, 0], pcl[i, 1], pcl[i, 2], *color))
 
         def colormap1(x, y, z):
-            vec = np.array([z, 0, .05 * x])
-            vec = np.clip(vec, 0.001, 1.0)
-            norm = np.sqrt(np.sum(vec ** 2))
-            vec /= norm
-            return vec
+            vec = np.array([x, y, z])
+            norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
+            norm = np.clip(norm, 0.0, 1.0)    # Clip the norm to stay within the range [0, 1]
+            
+            # Create a grayscale value based on the distance (norm)
+            value = norm
+            
+            # Return the grayscale color in the RGB format
+            # return [value, value/4, value/4]
+            
+            # Set the hue to red (0 degrees or 0 in the HSV scale), full saturation (1.0)
+            hue = 5.0/360       # Warm Red
+            saturation = 0.9 # Full saturation
+            value = norm    # Value based on the distance (norm)
+            
+            # Convert HSV to RGB
+            rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+            
+            return [rgb[0], rgb[1], rgb[2]]
+
 
         def colormap2(x, y, z):
-            vec = np.array(
-                [-.3 * z, z, -.3 * z + .3 * x])  # dark green, using a little of red in x for a little color effect
-            vec = np.clip(vec, 0.001, 1.0)
-            norm = np.sqrt(np.sum(vec ** 2))
-            vec /= norm
-            return vec
+            vec = np.array([x, y, z])
+            norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
+            norm = np.clip(norm, 0.0, 1.0)    # Clip the norm to stay within the range [0, 1]
+            
+            # Create a grayscale value based on the distance (norm)
+            value = norm
+            
+            # Return the grayscale color in the RGB format
+            # return [value/4, value, value/2]
+            # Create a grayscale value based on the distance (norm)
+            value = norm
+            
+            # Return the grayscale color in the RGB format
+            # return [value, value/4, value/4]
+            
+            # Set the hue to red (0 degrees or 0 in the HSV scale), full saturation (1.0)
+            hue = 139/360       # Green Cyan
+            saturation = 0.9 # Full saturation
+            value = norm    # Value based on the distance (norm)
+            
+            # Convert HSV to RGB
+            rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+            
+            return [rgb[0], rgb[1], rgb[2]]
+
 
         xml_segments = [xml_head]
-        add_xml_segments(partial_pcl, colormap1)
-        add_xml_segments(evaluated_pcl, colormap2)
+        add_xml_segments(partial_pcl, colormap1, xml_ball_segment=xml_ball_segment_partial)
+        add_xml_segments(evaluated_pcl, colormap2, xml_ball_segment=xml_ball_segment_evaluated)
         xml_segments.append(xml_tail)
 
         xml_content = str.join('', xml_segments)
