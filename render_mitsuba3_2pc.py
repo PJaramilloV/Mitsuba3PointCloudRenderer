@@ -1,9 +1,8 @@
-import os.path
 import glob
-from PIL import Image, ImageDraw
-import colorsys
+import os.path
 
 from render_mitsuba3 import *
+from utils import colormap_hsv_value_gradient
 
 xml_ball_segment_partial = \
     """
@@ -142,53 +141,10 @@ def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_
                 xml_segments.append(xml_ball_segment.format(pcl[i, 0], pcl[i, 1], pcl[i, 2], *color))
 
         def colormap1(x, y, z):
-            vec = np.array([x, y, z])
-            norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
-            norm = np.clip(norm, 0.0, 1.0)    # Clip the norm to stay within the range [0, 1]
-            
-            # Create a grayscale value based on the distance (norm)
-            value = norm
-            
-            # Return the grayscale color in the RGB format
-            # return [value, value/4, value/4]
-            
-            # Set the hue to red (0 degrees or 0 in the HSV scale), full saturation (1.0)
-            hue = 5.0/360       # Warm Red
-            saturation = 0.9 # Full saturation
-            value = norm    # Value based on the distance (norm)
-            
-            # Convert HSV to RGB
-            rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-            
-            return [rgb[0], rgb[1], rgb[2]]
-
+            return colormap_hsv_value_gradient(x, y, z, 5.0 / 360, 0.9)
 
         def colormap2(x, y, z):
-            vec = np.array([x, y, z])
-            norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
-            norm = np.clip(norm, 0.0, 1.0)    # Clip the norm to stay within the range [0, 1]
-            
-            # Create a grayscale value based on the distance (norm)
-            value = norm
-            
-            # Return the grayscale color in the RGB format
-            # return [value/4, value, value/2]
-            # Create a grayscale value based on the distance (norm)
-            value = norm
-            
-            # Return the grayscale color in the RGB format
-            # return [value, value/4, value/4]
-            
-            # Set the hue to red (0 degrees or 0 in the HSV scale), full saturation (1.0)
-            hue = 139/360       # Green Cyan
-            saturation = 0.9 # Full saturation
-            value = norm    # Value based on the distance (norm)
-            
-            # Convert HSV to RGB
-            rgb = colorsys.hsv_to_rgb(hue, saturation, value)
-            
-            return [rgb[0], rgb[1], rgb[2]]
-
+            return colormap_hsv_value_gradient(x, y, z, 139 / 360, 0.9)
 
         xml_segments = [xml_head]
         add_xml_segments(partial_pcl, colormap1, xml_ball_segment=xml_ball_segment_partial)

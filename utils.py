@@ -1,4 +1,5 @@
 import glob
+import colorsys
 
 import numpy as np
 
@@ -9,6 +10,31 @@ def colormap(x, y, z):
     norm = np.sqrt(np.sum(vec ** 2))
     vec /= norm
     return [vec[0], vec[1], vec[2]]
+
+
+def colormap_gray(x, y, z):
+    vec = np.array([x, y, z])
+    norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
+    norm = np.clip(norm, 0.0, 1.0)  # Clip the norm to stay within the range [0, 1]
+
+    # Create a grayscale value based on the distance (norm)
+    value = norm
+
+    # Return the grayscale color in the RGB format
+    return [value, value, value]
+
+
+def colormap_hsv_value_gradient(x, y, z, hue, saturation):
+    vec = np.array([x, y, z])
+    norm = np.sqrt(np.sum(vec ** 2))  # Compute the Euclidean distance from the origin
+    norm = np.clip(norm, 0.0, 1.0)  # Clip the norm to stay within the range [0, 1]
+
+    value = norm  # Value based on the distance (norm)
+
+    # Convert HSV to RGB
+    rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+
+    return [rgb[0], rgb[1], rgb[2]]
 
 
 def sample_pcl(pcl, points_per_object):
