@@ -1,8 +1,11 @@
 import glob
 import os.path
+import re
 
 from render_mitsuba3 import *
 from utils import colormap_hsv_value_gradient
+from scipy.spatial.transform import Rotation
+from numpy import pi
 
 xml_ball_segment_partial = \
     """
@@ -171,6 +174,7 @@ def parse_args():
     parser.add_argument("-j", "--join_renders", type=eval, default=True)
     parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], default='z', help='Axis considered height')
     parser.add_argument('-f', '--force_render', action='store_true', help='overwrite existing renders')
+    parser.add_argument('-m', '--multiview_number', type=int, default=1, help='How many views per object')
     parser.add_argument('-d', '--debug', action='store_true')
 
     parser.add_argument("--partial_suffix", type=str, default="_points.partial.ply")
@@ -195,8 +199,10 @@ def get_pairs_in_folder(partial_suffix, evaluated_suffix, pattern):
 def get_restored_renders(pattern):
     pattern, ext = os.path.splitext(pattern)
     pattern = pattern + "*" + ext  # To look for stuff like restored_pc_01.png, not just restored_pc.png
+    # But we need to exclude the (view n) files, so we only used the single/multiview files.
+    regex_view = re.compile(r".*\(view\d+\).*")
 
-    restored_files = sorted(glob.glob(pattern))
+    restored_files = sorted([file for file in glob.glob(pattern) if not regex_view.search(file)])
     return restored_files
 
 
@@ -208,7 +214,7 @@ if __name__ == "__main__":
     up_x, up_y, up_z = ('x' in up), ('y' in up), ('z' in up)
     up_vec = f'{1&up_x},{1&up_y},{1&up_z}'
     origin_vec = '3,3,3'
-    xml_head.format(origin_vec, up_vec)
+    xml_head_base = xml_head
     xml_tail = xml_tail.format(up_vec)
     if args.debug:
         debug_msg = print
@@ -216,11 +222,35 @@ if __name__ == "__main__":
     pair_paths = get_pairs_in_folder(args.partial_suffix, args.evaluated_suffix, args.basename)
     for path in tqdm(pair_paths):
         try:
-            main2(path[0],
-                  path[1],
-                  path[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix,
-                  args.num_points_per_object,
-                  forced=args.force_render)
+            out_path = path[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix
+            if args.multiview_number > 1:
+                out_path_ext = os.path.splitext(out_path)[1]
+                for i_view in range(args.multiview_number):
+                    phi = 2*pi*(i_view/args.multiview_number)
+                    rotated_origin_vec = Rotation.from_euler(up, -phi).apply(np.array(origin_vec.split(','), dtype=int))
+                    xml_head = xml_head_base.format(
+                        ','.join([f'{c:.3f}' for c in rotated_origin_vec]),  # array to string 'x,y,z' like
+                        up_vec
+                    )
+
+                    main2(path[0],
+                          path[1],
+                          out_path.replace(out_path_ext, f'_(view{i_view:02d})'+out_path_ext),
+                          args.num_points_per_object,
+                          forced=args.force_render)
+                merge_renders(
+                    sorted(glob.glob(out_path.replace(out_path_ext, f'_(view*)_*'+out_path_ext))),
+                    out_path,
+                    direction='horizontal'
+                )
+
+            else:
+                xml_head = xml_head_base.format(origin_vec, up_vec)
+                main2(path[0],
+                      path[1],
+                      out_path,
+                      args.num_points_per_object,
+                      forced=args.force_render)
         except Exception as e:
             print(e)
 
