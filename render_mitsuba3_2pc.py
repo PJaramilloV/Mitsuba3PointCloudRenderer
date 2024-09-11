@@ -104,7 +104,7 @@ def standardize_bbox2(pcl1, pcl2, points_per_object):
     return pcl1, pcl2
 
 
-def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_object):
+def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_object, forced=False):
     filename, out_file_extension = os.path.splitext(out_file_path)
     _, in_file_extension = os.path.splitext(partial_file_path)
     # filename = os.path.basename(filename)
@@ -153,19 +153,13 @@ def main2(partial_file_path, evaluated_file_path, out_file_path, num_points_per_
 
         xml_content = str.join('', xml_segments)
 
-        xmlFile = f"{filename}_{pcli:02d}.xml"  # os.path.join(folder, f"{filename}_restored_{pcli:02d}.xml")
-        print(['Writing to: ', xmlFile])
-
-        with open(xmlFile, 'w') as f:
-            f.write(xml_content)
-        f.close()
-
-        png_file = f"{filename}_{pcli:02d}" + out_file_extension  # os.path.join(folder, f"{filename}_restored_{pcli:02d}.png")
-        print(['Running Mitsuba, loading: ', xmlFile])
-        scene = mitsuba.load_file(xmlFile)
-        render = mitsuba.render(scene)
-        print(['writing to: ', png_file])
-        mitsuba.util.write_bitmap(png_file, render, write_async=False)
+        xml_file = f"{filename}_{pcli:02d}.xml"  # os.path.join(folder, f"{filename}_restored_{pcli:02d}.xml")
+        png_file = xml_file.replace('.xml', out_file_extension)
+        if forced or (not os.path.exists(png_file)):
+            write_xml(xml_file, xml_content)
+            render_xml(xml_file, png_file)
+        else:
+            debug_msg('skipping rendering because the file already exist')
 
 
 def parse_args():
@@ -174,7 +168,10 @@ def parse_args():
                         help="basename of the .ply partial and evaluated files, or name of the folder to process")
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
+    parser.add_argument("-j", "--join_renders", type=eval, default=True)
     parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], default='z', help='Axis considered height')
+    parser.add_argument('-f', '--force_render', action='store_true', help='overwrite existing renders')
+    parser.add_argument('-d', '--debug', action='store_true')
 
     parser.add_argument("--partial_suffix", type=str, default="_points.partial.ply")
     parser.add_argument("--evaluated_suffix", type=str, default="_evaluated_pc.ply")
@@ -212,17 +209,19 @@ if __name__ == "__main__":
     up_vec = f'{1&up_x},{1&up_y},{1&up_z}'
     xml_head = xml_head.format(up_vec)
     xml_tail = xml_tail.format(up_vec)
+    if args.debug:
+        debug_msg = print
     
     pair_paths = get_pairs_in_folder(args.partial_suffix, args.evaluated_suffix, args.basename)
-    for p in pair_paths:
-        print(p[0], p[1], p[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix)
+    for path in tqdm(pair_paths):
         try:
-            main2(p[0],
-                  p[1],
-                p[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix,
-                args.num_points_per_object)
+            main2(path[0],
+                  path[1],
+                  path[0].rsplit(args.partial_suffix, 1)[0] + args.restored_suffix,
+                  args.num_points_per_object,
+                  forced=args.force_render)
         except Exception as e:
             print(e)
 
-    if len(pair_paths) > 1:
-        merge_renders(get_restored_renders(args.basename+args.restored_suffix), args.basename[:-1] + "combined.png")
+    if args.join_renders:
+        merge_renders(get_restored_renders(args.basename + args.restored_suffix), args.basename[:-1] + "combined.png")
