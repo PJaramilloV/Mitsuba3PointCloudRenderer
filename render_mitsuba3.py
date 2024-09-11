@@ -196,7 +196,10 @@ def remove_images(files):
         os.remove(img)
 
 
-def merge_renders(renders, filename):
+def merge_renders(renders, filename, direction='vertical'):
+    if direction not in ['horizontal', 'vertical']:
+        raise ValueError(f"Unknown '{direction}' direction when merging renders")
+
     images = []
     try:
         font = ImageFont.truetype("FreeSans.ttf", 30)
@@ -214,15 +217,24 @@ def merge_renders(renders, filename):
         ImageDraw.Draw(image).text((30, 10), file, fill=(128, 128, 128), font=font)
 
         images.append(image)
-        combined_size['width'] = max(combined_size['width'], images[-1].width)
-        combined_size['height'] += images[-1].height
+
+        if direction == 'vertical':
+            combined_size['width'] = max(combined_size['width'], images[-1].width)
+            combined_size['height'] += images[-1].height
+        elif direction == 'horizontal':
+            combined_size['width'] += images[-1].width
+            combined_size['height'] = max(combined_size['height'], images[-1].height)
 
     combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
 
-    h = 0
+    offset = 0
     for image in images:
-        combined_image.paste(image, (0, h))
-        h += image.height
+        if direction == 'vertical':
+            combined_image.paste(image, (0, offset))
+            offset += image.height
+        elif direction == 'horizontal':
+            combined_image.paste(image, (offset, 0))
+            offset += image.width
         image.close()
 
     print("Saving", filename)
