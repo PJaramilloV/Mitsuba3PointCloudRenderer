@@ -207,7 +207,8 @@ if __name__ == "__main__":
     up = args.up_axis
     up_x, up_y, up_z = ('x' in up), ('y' in up), ('z' in up)
     up_vec = f'{1&up_x},{1&up_y},{1&up_z}'
-    xml_head = xml_head.format(up_vec)
+    origin_vec = '3,3,3'
+    xml_head.format(origin_vec, up_vec)
     xml_tail = xml_tail.format(up_vec)
     if args.debug:
         debug_msg = print
