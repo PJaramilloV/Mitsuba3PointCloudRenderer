@@ -2,6 +2,7 @@ import glob
 import colorsys
 
 import numpy as np
+import mitsuba
 
 
 def colormap(x, y, z):
@@ -66,9 +67,11 @@ def standardize_bbox(pcl, points_per_object):
 def get_files(pattern):
     return glob.glob(pattern)
 
+
 def rreplace(s, old, new, occurrence=1):
     li = s.rsplit(old, occurrence)
     return new.join(li)
+
 
 def get_images(files, replace_dots=False):
     images = []
@@ -80,6 +83,21 @@ def get_images(files, replace_dots=False):
         imgs = sorted(glob.glob(pattern))
         images.extend(imgs)
     return images
+
+
+def render_xml(xml_file, png_file):
+    debug_msg(['Running Mitsuba, loading: ', xml_file])
+    scene = mitsuba.load_file(xml_file)
+    render = mitsuba.render(scene)
+    debug_msg(['writing to: ', png_file])
+    mitsuba.util.write_bitmap(png_file, render)
+
+
+def write_xml(xml_file, content):
+    debug_msg(['Writing to: ', xml_file])
+    with open(xml_file, 'w') as f:
+        f.write(content)
+
 
 def debug_msg(*args,**kwargs):
     pass
