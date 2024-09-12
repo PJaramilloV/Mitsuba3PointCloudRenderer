@@ -196,6 +196,36 @@ def get_pairs_in_folder(partial_suffix, evaluated_suffix, pattern):
     return pairs
 
 
+def get_rendered_views_groups(base_path):
+    """
+    Using a base_path, we expect to find files with a suffix _(viewX)_Y added.
+    This function gets and groups by Y all of these files, Y being the scene number.
+
+    :param base_path:
+    :return: list of grouped files
+    """
+    base_path, base_path_ext = os.path.splitext(base_path)
+    # First we get all files related to the rendered object
+    pattern = base_path + '_(view*)_*' + base_path_ext
+    renders = sorted(glob.glob(pattern))
+
+    grouped_renders = {}
+    out_paths = {}
+    # Then, we do pattern matching.
+    group_pattern = r'([a-zA-Z0-9_\\]+)_\(view(\d+)\)_(\d+)\.png'
+    for render in renders:
+        match = re.search(group_pattern, render)
+        # match.group(1) should be always the same, since we called glob with a base pattern.
+        # view_number = int(match.group(2))
+        scene_number = match.group(3)
+        if scene_number not in grouped_renders:
+            grouped_renders[scene_number] = []
+            out_paths[scene_number] = base_path + '_' + scene_number + base_path_ext
+        grouped_renders[scene_number].append(render)
+
+    return grouped_renders, out_paths
+
+
 def get_restored_renders(pattern):
     pattern, ext = os.path.splitext(pattern)
     pattern = pattern + "*" + ext  # To look for stuff like restored_pc_01.png, not just restored_pc.png
@@ -238,11 +268,13 @@ if __name__ == "__main__":
                           out_path.replace(out_path_ext, f'_(view{i_view:02d})'+out_path_ext),
                           args.num_points_per_object,
                           forced=args.force_render)
-                merge_renders(
-                    sorted(glob.glob(out_path.replace(out_path_ext, f'_(view*)_*'+out_path_ext))),
-                    out_path,
-                    direction='horizontal'
-                )
+                groups, paths = get_rendered_views_groups(out_path)
+                for k in groups:
+                    merge_renders(
+                        groups[k],
+                        paths[k],
+                        direction='horizontal'
+                    )
 
             else:
                 xml_head = xml_head_base.format(origin_vec, up_vec)
