@@ -1,11 +1,24 @@
+import argparse
 import glob
+import os
 import os.path
 import re
 
-from render_mitsuba3 import *
-from utils import colormap_hsv_value_gradient
-from scipy.spatial.transform import Rotation
+import mitsuba
+import numpy as np
 from numpy import pi
+from scipy.spatial.transform import Rotation
+from tqdm import tqdm
+
+from plyfile import PlyData
+from render_mitsuba3 import xml_head, xml_ball_segment, xml_tail, merge_renders
+from utils import (
+    colormap,
+    write_xml,
+    render_xml,
+    debug_msg,
+    colormap_hsv_value_gradient
+)
 
 xml_ball_segment_partial = \
     """

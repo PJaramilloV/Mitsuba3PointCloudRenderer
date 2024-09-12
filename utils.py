@@ -1,8 +1,8 @@
-import glob
 import colorsys
+import glob
 
-import numpy as np
 import mitsuba
+import numpy as np
 
 
 def colormap(x, y, z):

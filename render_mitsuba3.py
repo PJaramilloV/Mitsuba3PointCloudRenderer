@@ -1,11 +1,12 @@
-from PIL import Image, ImageDraw, ImageFont
-from plyfile import PlyData
-from tqdm import tqdm
-import numpy as np
 import argparse
-import mitsuba
 import os
 
+import mitsuba
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
+
+from plyfile import PlyData
 from utils import (
     standardize_bbox, colormap,
     get_files, rreplace, get_images,
