@@ -78,8 +78,6 @@ def standardize_bbox2(pcl1, pcl2, points_per_object):
 
     :points_per_object: Total points, it will be weighted.
     """
-    print(f"standardize to {points_per_object} points")
-
     # weight the points per object (ppo)
     total_n = pcl1.shape[0] + pcl2.shape[0]
     pcl1_ppo = int(pcl1.shape[0] * (points_per_object / total_n))
@@ -99,7 +97,7 @@ def standardize_bbox2(pcl1, pcl2, points_per_object):
     maxs = np.amax(pcl_concat, axis=0)
     center = (mins + maxs) / 2.
     scale = np.amax(maxs - mins)
-    print("Center: {}, Scale: {}".format(center, scale))
+    debug_msg("Center: {}, Scale: {}".format(center, scale))
 
     # [-0.5, 0.5]
     pcl1 = ((pcl1 - center) / scale).astype(np.float32)  # [-0.5, 0.5]
