@@ -3,13 +3,12 @@ import os
 
 import mitsuba
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 from plyfile import PlyData
 from utils import (
     standardize_bbox, colormap,
-    get_files, rreplace, get_images,
+    get_files, rreplace, get_images, merge_renders,
     write_xml, render_xml,
     debug_msg
 )
@@ -195,51 +194,6 @@ def remove_images(files):
         xml = img.replace('png', 'xml')
         os.remove(xml)
         os.remove(img)
-
-
-def merge_renders(renders, filename, direction='vertical'):
-    if direction not in ['horizontal', 'vertical']:
-        raise ValueError(f"Unknown '{direction}' direction when merging renders")
-
-    images = []
-    try:
-        font = ImageFont.truetype("FreeSans.ttf", 30)
-    except IOError:
-        font = ImageFont.load_default()
-
-    combined_size = {'width': 0, 'height': 0}
-    for render in renders:
-        image = Image.open(render)
-        factor = 540 / image.height
-        image = image.resize((int(factor * image.width), 540))
-        file = render.split('/')[-1]
-
-        # Draw text
-        ImageDraw.Draw(image).text((30, 10), file, fill=(128, 128, 128), font=font)
-
-        images.append(image)
-
-        if direction == 'vertical':
-            combined_size['width'] = max(combined_size['width'], images[-1].width)
-            combined_size['height'] += images[-1].height
-        elif direction == 'horizontal':
-            combined_size['width'] += images[-1].width
-            combined_size['height'] = max(combined_size['height'], images[-1].height)
-
-    combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
-
-    offset = 0
-    for image in images:
-        if direction == 'vertical':
-            combined_image.paste(image, (0, offset))
-            offset += image.height
-        elif direction == 'horizontal':
-            combined_image.paste(image, (offset, 0))
-            offset += image.width
-        image.close()
-
-    print("Saving", filename)
-    combined_image.save(filename)
 
 
 if __name__ == "__main__":

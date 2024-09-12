@@ -11,9 +11,10 @@ from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 
 from plyfile import PlyData
-from render_mitsuba3 import xml_head, xml_ball_segment, xml_tail, merge_renders
+from render_mitsuba3 import xml_head, xml_ball_segment, xml_tail
 from utils import (
     colormap,
+    merge_renders,
     write_xml,
     render_xml,
     debug_msg,
