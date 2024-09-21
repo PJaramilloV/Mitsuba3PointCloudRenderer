@@ -1,14 +1,15 @@
-from PIL import Image, ImageDraw, ImageFont
-from plyfile import PlyData
-from tqdm import tqdm
-import numpy as np
 import argparse
-import mitsuba
 import os
 
+import mitsuba
+import numpy as np
+from tqdm import tqdm
+
+from plyfile import PlyData
 from utils import (
-    standardize_bbox, colormap, 
-    get_files, rreplace, get_images,
+    standardize_bbox, colormap,
+    get_files, rreplace, get_images, merge_renders,
+    write_xml, render_xml,
     debug_msg
 )
 
@@ -26,7 +27,7 @@ xml_head = \
         <float name="far_clip" value="100"/>
         <float name="near_clip" value="0.1"/>
         <transform name="to_world">
-            <lookat origin="3,3,3" target="0,0,0" up="{}"/>
+            <lookat origin="{}" target="0,0,0" up="{}"/>
         </transform>
         <float name="fov" value="25"/>
         <sampler type="independent">
@@ -63,7 +64,7 @@ xml_ball_segment = \
 """
 
 xml_obj_segment = \
-"""
+    """
     <shape type="obj">
         <string name="filename" value="{}"/>
     </shape>
@@ -82,7 +83,7 @@ xml_tail = \
     <shape type="rectangle">
         <transform name="to_world">
             <scale value="10, 10, 1"/>
-            <lookat origin="-4,4,20" target="0,0,0" up="0,0,1"/>
+            <lookat origin="-4,4,20" target="0,0,0" up="{}"/>
         </transform>
         <emitter type="area">
             <rgb name="radiance" value="6,6,6"/>
@@ -91,51 +92,49 @@ xml_tail = \
 </scene>
 """
 
-def render_xml(xml_file, png_file):
-    debug_msg(['Running Mitsuba, loading: ', xml_file])
-    scene = mitsuba.load_file(xml_file)
-    render = mitsuba.render(scene)
-    debug_msg(['writing to: ', png_file])
-    mitsuba.util.write_bitmap(png_file, render)
 
-def write_xml(xml_file, content):
-    debug_msg(['Writing to: ', xml_file])
-    with open(xml_file, 'w') as f:
-        f.write(content)
-
-
-def main(pathToFile, num_points_per_object, forced=False):
+def main(pathToFile, num_points_per_object, forced=False, obj_as_pcl=False):
     filename, file_extension = os.path.splitext(pathToFile)
     folder = os.path.dirname(pathToFile)
     filename = os.path.basename(pathToFile)
-    object_name = rreplace(filename,'.','_')
+    object_name = rreplace(filename, '.', '_')
 
     # for the moment supports npy and ply
-    if (file_extension == '.npy'):
+    if file_extension == '.npy':
         pclTime = np.load(pathToFile)
         pclTimeSize = np.shape(pclTime)
-    elif (file_extension == '.npz'):
+    elif file_extension == '.npz':
         pclTime = np.load(pathToFile)
         pclTime = pclTime['pred']
         pclTimeSize = np.shape(pclTime)
-    elif (file_extension == '.ply'):
+    elif file_extension == '.ply':
         ply = PlyData.read(pathToFile)
         vertex = ply['vertex']
         (x, y, z) = (vertex[t] for t in ('x', 'y', 'z'))
         pclTime = np.column_stack((x, y, z))
-    elif (file_extension == '.obj'):
-        xml_file = os.path.join(folder, f"{object_name}.xml")
-        png_file = xml_file.replace('.xml','.png')
-        if forced or (not os.path.exists(png_file)):
-            xml_segments = [xml_head]
-            xml_segments.append(xml_obj_segment.format(pathToFile))
-            xml_segments.append(xml_tail)
-            xml_content = str.join('', xml_segments)
-            write_xml(xml_file, xml_content)
-            render_xml(xml_file, png_file)
+    elif file_extension == '.obj':
+        if obj_as_pcl:
+            import pywavefront
+            scene = pywavefront.Wavefront(pathToFile)
+            if len(scene.materials) == 0:
+                pclTime = np.array(scene.vertices)
+            else:
+                pclTime = []
+                for _, material in scene.materials.items():
+                    pclTime.append(np.array(material.vertices).reshape(-1, 3))
+                pclTime = np.array(pclTime)
+            pclTimeSize = np.shape(pclTime)
         else:
-            debug_msg('skipping rendering because the file already exists')
-        return
+            xml_file = os.path.join(folder, f"{object_name}.xml")
+            png_file = xml_file.replace('.xml', '.png')
+            if forced or (not os.path.exists(png_file)):
+                xml_segments = [xml_head, xml_obj_segment.format(pathToFile), xml_tail]
+                xml_content = str.join('', xml_segments)
+                write_xml(xml_file, xml_content)
+                render_xml(xml_file, png_file)
+            else:
+                debug_msg('skipping rendering because the file already exists')
+            return
     else:
         print('unsupported file format.')
         return
@@ -146,8 +145,8 @@ def main(pathToFile, num_points_per_object, forced=False):
 
     for pcli in range(0, pclTimeSize[0]):
         pcl = pclTime[pcli, :, :]
-        
-        pcl = standardize_bbox(pcl, num_points_per_object)
+
+        pcl = standardize_bbox(pcl, min(num_points_per_object, pcl.shape[0]))
         pcl = pcl[:, [2, 0, 1]]
         pcl[:, 0] *= -1
         pcl[:, 2] += 0.0125
@@ -161,11 +160,10 @@ def main(pathToFile, num_points_per_object, forced=False):
         xml_content = str.join('', xml_segments)
 
         xml_file = os.path.join(folder, f"{object_name}_{pcli:02d}_{num_points_per_object}.xml")
-        write_xml(xml_file, xml_content)
-        
-        png_file = xml_file.replace('.xml','.png')
+        png_file = xml_file.replace('.xml', '.png')
+
         if forced or (not os.path.exists(png_file)):
-            debug_msg(f'saving image: {xml_file}')
+            write_xml(xml_file, xml_content)
             render_xml(xml_file, png_file)
         else:
             debug_msg('skipping rendering because the file already exists')
@@ -177,12 +175,17 @@ def parse_args():
     parser.add_argument("-n", "--num_points_per_object", type=int, default=2048)
     parser.add_argument("-v", "--mitsuba_variant", type=str, choices=mitsuba.variants(), default="scalar_rgb")
     parser.add_argument("-j", "--join_renders", type=eval, default=True)
-    parser.add_argument("-c", "--clear", type=eval, default=False, help='clear all previous images corresponding to the files')
-    parser.add_argument('-k', '--keep_renders', type=eval, default=True, help='keep rendered images after completing rendering')
-    parser.add_argument('-f', '--force_render', type=eval, default=False)
-    parser.add_argument('-d', '--debug', type=eval, default=False)
-    parser.add_argument('-u', '--up_axis', type=str, choices=['x','y','z'], help='Axis considered height')
+    parser.add_argument('-k', '--keep_renders', type=eval, default=True,
+                        help='keep rendered images after completing rendering')
+    parser.add_argument('-u', '--up_axis', type=str, choices=['x', 'y', 'z'], default='z',
+                        help='Axis considered height')
+    parser.add_argument('-f', '--force_render', action='store_true', help='overwrite existing renders')
+    parser.add_argument("-c", "--clear", action='store_true',
+                        help='clear all previous images corresponding to the files')
+    parser.add_argument('--render_obj_as_pointcloud', action='store_true')
+    parser.add_argument('-d', '--debug', action='store_true')
     return parser.parse_args()
+
 
 def remove_images(files):
     imgs = get_images(files, replace_dots=True)
@@ -223,14 +226,16 @@ def merge_renders(renders, filename):
     print("Saving", filename)
     combined_image.save(filename)
 
+
 if __name__ == "__main__":
     args = parse_args()
     mitsuba.set_variant(args.mitsuba_variant)
     files = get_files(args.filename)
     up = args.up_axis
     up_x, up_y, up_z = ('x' in up), ('y' in up), ('z' in up)
-    up_vec = f'{1&up_x},{1&up_y},{1&up_z}'
-    xml_head = xml_head.format(up_vec)
+    up_vec = f'{1 & up_x},{1 & up_y},{1 & up_z}'
+    origin_vec = '3,3,3'
+    xml_head = xml_head.format(origin_vec, up_vec)
     xml_tail = xml_tail.format(up_vec)
     if args.debug:
         debug_msg = print
@@ -239,10 +244,10 @@ if __name__ == "__main__":
         remove_images(files)
 
     for path in tqdm(files):
-        main(path, args.num_points_per_object, forced=args.force_render)
+        main(path, args.num_points_per_object, forced=args.force_render, obj_as_pcl=args.render_obj_as_pointcloud)
 
     if args.join_renders:
-        deepest_dir:str = args.filename
+        deepest_dir: str = args.filename
         try:
             first_wild = deepest_dir.index('*')
             deepest_dir = deepest_dir[:first_wild]
@@ -256,9 +261,9 @@ if __name__ == "__main__":
 
         if not deepest_dir:
             deepest_dir = '.'
-        
+
         imgs = get_images(files, replace_dots=True)
-        merge_renders(sorted(imgs), os.path.join(deepest_dir,'data_view.png'))
+        merge_renders(sorted(imgs), os.path.join(deepest_dir, 'data_view.png'))
 
     if not args.keep_renders:
         remove_images(files)
