@@ -126,6 +126,9 @@ def merge_renders(renders, filename, direction='vertical'):
             combined_image.paste(image, (offset, 0))
             offset += image.width
         image.close()
+    
+    if offset==0:
+        raise FileNotFoundError("No files to combine have been found")
 
     print("Saving", filename)
     combined_image.save(filename)

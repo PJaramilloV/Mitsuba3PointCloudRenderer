@@ -195,36 +195,6 @@ def remove_images(files):
         os.remove(xml)
         os.remove(img)
 
-def merge_renders(renders, filename):
-    images = []
-    font = ImageFont.truetype("FreeSans.ttf", 30)
-    combined_size = {'width': 0, 'height': 0}
-    for render in renders:
-        image = Image.open(render)
-        factor = 540 / image.height
-        image = image.resize((int(factor * image.width), 540))
-        file = render.split('/')[-1]
-
-        # Draw text
-        ImageDraw.Draw(image).text((30, 10), file, fill=(128, 128, 128), font=font)
-
-        images.append(image)
-        combined_size['width'] = max(combined_size['width'], images[-1].width)
-        combined_size['height'] += images[-1].height
-
-    combined_image = Image.new("RGB", (combined_size["width"], combined_size["height"]))
-
-    h = 0
-    for image in images:
-        combined_image.paste(image, (0, h))
-        h += image.height
-        image.close()
-    
-    if h==0:
-        raise FileNotFoundError("No files to combine have been found")
-
-    print("Saving", filename)
-    combined_image.save(filename)
 
 
 if __name__ == "__main__":
